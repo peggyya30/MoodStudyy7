@@ -1,0 +1,881 @@
+/* --- 1. �箇�霈𦠜彍���撅�閮剖� --- */
+:root {
+    --bg-color: #f8f9fa;
+    --text-color: #333;
+    
+    /* ���隞�”�� (�箇��脩㮾) */
+    /* 隞” (箇脩㮾) */
+    --color-focus: #28a745; /* 撠釣嚗匁eetCode 蝬 */
+    --color-stable: #17a2b8; /* 蝛拙嚗𡁜像𡏭 */
+    --color-anxious: #fd7e14; /* 行嚗𡁏脤霅 */
+    --color-unmotivated: #6c757d; /* 瘝鍦𨥈唳 */
+}
+
+body {
+    /* Styles are now mainly handled by teammate_style.css */
+}
+
+section {
+    background: white;
+    padding: 20px;
+    border-radius: 12px;
+    box-shadow: 0 4px 6px rgba(0,0,0,0.05);
+    margin-bottom: 20px;
+}
+
+/* --- 撠舘汗�埈見撘� --- */
+#main-nav {
+    display: flex;
+    justify-content: space-between;
+    gap: 10px;
+    margin-bottom: 20px;
+    background: white;
+    padding: 10px;
+    border-radius: 12px;
+    box-shadow: 0 4px 6px rgba(0,0,0,0.05);
+}
+
+.nav-btn {
+    flex: 1;
+    padding: 12px;
+    cursor: pointer;
+    border: none;
+    border-radius: 8px;
+    background: var(--bg-color);
+    color: var(--text-color);
+    font-size: 1em;
+    font-weight: bold;
+    transition: all 0.2s ease;
+}
+
+.nav-btn:hover {
+    background: #e2e6ea;
+}
+
+/* 鋡恍�銝剔�撠舘汗�厰� */
+.nav-btn.active {
+    background: var(--color-stable); /* 雿輻鍂�穃�𤏸身摰𡁶�撟喲��� */
+    color: white;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.2);
+}
+
+/* --- SPA ���憿舐內�讛摩 --- */
+.page-section {
+    display: none; /* �鞱身�券��梯� */
+    animation: fadeIn 0.3s ease-in-out; /* ������銝𦠜楚�亦鸌�� */
+}
+
+/* �芣�撣嗆� active 憿𧼮ê̌�� section �齿�憿舐內 */
+.page-section.active {
+    display: block; 
+}
+
+@keyframes fadeIn {
+    from { opacity: 0; transform: translateY(10px); }
+    to { opacity: 1; transform: translateY(0); }
+}
+
+/* --- 2. LeetCode 蝬脫聢��憛𦠜見撘� --- */
+
+.grid-container {
+    display: grid;
+    /* 蝣箔��箏��� 7 �� (隞�”�望𠯫�圈�勗�) */
+    grid-template-rows: repeat(7, 1fr);
+    /* 霈枏�蝝惩��曹�敺�銝𧢲�皛� 7 �潘��滚��喲��𥡝� */
+    grid-auto-flow: column;
+    /* �澆�銋钅����撖��頝嘅�LeetCode 蝬枏�瘥𥪯� */
+    gap: 4px; 
+    /* 霈㯄��瑞�蝬脫聢�臭誑撌血𢰧皛穃� */
+    overflow-x: auto;
+    padding: 20px 10px;
+    /* �梯��脰遘嚗諹�閬𤥁死�港嗾瘛� (�拍鍂�� Firefox �� Webkit) */
+    scrollbar-width: none; 
+}
+
+.grid-container::-webkit-scrollbar {
+    display: none;
+}
+
+.grid-cell {
+    /* LeetCode 蝬枏����甇�䲮敶Ｗ偕撖� */
+    width: 14px; 
+    height: 14px;
+    background-color: #ebedf0; /* �鞱身蝛箇雯�潛�瘛箇��� */
+    border-radius: 3px;        /* 敺桀�閫� */
+    transition: all 0.2s ease;
+    cursor: pointer;
+}
+
+/* �嗆�曌䭾瑌瘚桀銁�澆�銝羓�鈭鍦��鮋� */
+.grid-cell:hover {
+    transform: scale(1.3);
+    box-shadow: 0 2px 8px rgba(0,0,0,0.15);
+    z-index: 10;
+}
+
+/* �嘥��㕑��嗵��澆��牐�敺桀凝���獢��霈栞𠧧敶拇凒蝡钅� */
+.grid-cell[data-has-data="true"] {
+    border: 1px solid rgba(27, 31, 35, 0.06);
+}
+
+/* �梯��� Loading �恍𢒰璅�� */
+#loading-screen {
+    text-align: center;
+    color: var(--color-stable);
+    font-weight: bold;
+    margin: 15px 0;
+}
+
+/* �賢㨃�閧𧞄 */
+@keyframes popIn {
+    0% { transform: scale(0.5); opacity: 0; }
+    80% { transform: scale(1.05); opacity: 1; }
+    100% { transform: scale(1); }
+}
+.hidden { display: none; }
+
+/* --- 3. 敹���亥��𦒘縑��見撘� (Pikmin Bloom 憸冽聢) --- */
+.postcard-container {
+    background: url('https://www.transparenttextures.com/patterns/cream-paper.png'), #fffdfa;
+    border: 15px solid white;
+    box-shadow: 0 10px 25px rgba(0,0,0,0.15);
+    border-radius: 2px;
+    padding: 20px;
+    position: relative;
+    min-height: 400px;
+    width: 320px;
+    display: flex;
+    flex-direction: column;
+    justify-content: space-between;
+    overflow: hidden;
+}
+
+/* �菜�璅�� (Stamp) */
+.postcard-stamp {
+    position: absolute;
+    top: 20px;
+    right: 20px;
+    width: 90px;
+    height: 90px;
+    border: 3px solid #d9534f;
+    border-radius: 50%;
+    color: #d9534f;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    transform: rotate(15deg);
+    font-weight: bold;
+    font-family: 'Courier New', Courier, monospace;
+    opacity: 0.8;
+    z-index: 5;
+    background: rgba(255,255,255,0.4);
+}
+.postcard-stamp-date {
+    font-size: 0.9em;
+    margin-bottom: 2px;
+}
+.postcard-stamp-text {
+    font-size: 1.1em;
+    letter-spacing: 1px;
+}
+
+/* 迷因圖片佔據明信片上方區域 */
+.postcard-meme {
+    position: relative;
+    width: 100%;
+    flex-grow: 1;
+    max-height: 260px; /* 大約佔據 400px 的 2/3 */
+    object-fit: contain;
+    filter: drop-shadow(2px 4px 6px rgba(0,0,0,0.2));
+    transition: transform 0.3s;
+    margin-top: 10px;
+    margin-bottom: 15px;
+}
+
+.postcard-meme-1 {
+    z-index: 2;
+}
+
+/* 蝯梯鞈 AI 蝯鞱憛 */
+.postcard-content {
+    z-index: 10;
+    margin-top: auto;
+    background: rgba(255, 255, 255, 0.85);
+    padding: 15px;
+    border-radius: 8px;
+    border-left: 4px solid var(--color-stable);
+    backdrop-filter: blur(2px);
+}
+
+.postcard-stats {
+    display: flex;
+    justify-content: space-around;
+    margin-bottom: 10px;
+    font-size: 0.9em;
+    font-weight: bold;
+    color: #444;
+    border-bottom: 1px dashed #ccc;
+    padding-bottom: 8px;
+}
+
+.postcard-ai-analysis h4 {
+    margin: 0 0 5px 0;
+    color: #333;
+    font-size: 1em;
+}
+
+.postcard-ai-analysis p {
+    margin: 0;
+    line-height: 1.4;
+    color: #555;
+    font-size: 0.9em;
+}
+
+/* ==========================================
+   敺�齒皜�鱓 (To-Do List) 璅��
+   ========================================== */
+.todo-container {
+    background: white;
+    padding: 15px;
+    border-radius: 12px;
+    box-shadow: 0 4px 6px rgba(0,0,0,0.05);
+    margin-bottom: 20px;
+    border: 1px solid #eee;
+}
+.todo-input-group {
+    display: flex;
+    gap: 10px;
+    margin-bottom: 15px;
+}
+#new-todo-input {
+    flex-grow: 1;
+    padding: 10px;
+    border: 1px solid #ccc;
+    border-radius: 8px;
+    font-size: 1em;
+}
+#todo-list {
+    list-style: none;
+    padding: 0;
+    margin: 0;
+}
+.todo-item {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 10px;
+    background: #f8f9fa;
+    margin-bottom: 8px;
+    border-radius: 8px;
+    transition: all 0.2s ease;
+}
+.todo-item:hover {
+    background: #e9ecef;
+}
+.todo-item.completed {
+    opacity: 0.6;
+}
+.todo-item.completed span {
+    text-decoration: line-through;
+    color: #6c757d;
+}
+.todo-checkbox {
+    margin-right: 10px;
+    transform: scale(1.2);
+    cursor: pointer;
+}
+.btn-delete-todo {
+    background: none;
+    border: none;
+    color: #dc3545;
+    cursor: pointer;
+    font-weight: bold;
+    font-size: 1.1em;
+}
+
+/* ==========================================
+   �㚚�蝬脫聢 (Gallery Grid)
+   ========================================== */
+.gallery-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
+    gap: 15px;
+}
+.gallery-item {
+    background: white;
+    border-radius: 8px;
+    overflow: hidden;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+    cursor: pointer;
+    transition: transform 0.2s;
+    border: 3px solid #eee;
+}
+.gallery-item:hover {
+    transform: scale(1.05);
+    border-color: var(--color-stable);
+}
+.gallery-item img {
+    width: 100%;
+    height: 140px;
+    object-fit: contain;
+    display: block;
+    background: #fdfbfb;
+}
+.gallery-item-date {
+    text-align: center;
+    padding: 8px;
+    font-size: 0.85em;
+    font-weight: bold;
+    background: #f8f9fa;
+    color: #555;
+    border-top: 1px solid #eee;
+}
+
+/*  SPA ���憿舐內�讛摩 */
+
+/* 1. �鞱身�梯����匧葆�� .page-section 憿𧼮ê̌���憛� */
+.page-section {
+    display: none; 
+    animation: fadeIn 0.3s ease-in-out; /* ������銝𠰴凝敺格楚�亦��𤾸聦�寞� */
+}
+
+/* 2. �芣��峕�撣嗆� .active 憿𧼮ê̌���憛𠺪��齿�閬��銝𢠃𢒰��黸�讛身摰𡄯�憿舐內�箔� */
+.page-section.active {
+    display: block; 
+}
+
+/* 瘛∪��閧𧞄��敦蝭� */
+@keyframes fadeIn {
+    from { opacity: 0; transform: translateY(10px); }
+    to { opacity: 1; transform: translateY(0); }
+}
+
+/* �豢筑撠誩極�瑟見撘� */
+
+/* �喃�閫埝瑌瘚格��� */
+#chat-widget-btn {
+    position: fixed;
+    bottom: 20px;
+    right: 20px;
+    background-color: var(--color-stable); /* 雿輻鍂撟喲��� */
+    color: white;
+    border: none;
+    border-radius: 50px;
+    padding: 15px 25px;
+    font-size: 1.1em;
+    font-weight: bold;
+    box-shadow: 0 4px 10px rgba(0,0,0,0.2);
+    cursor: pointer;
+    z-index: 1000;
+    transition: transform 0.2s, background-color 0.2s;
+}
+
+#chat-widget-btn:hover {
+    transform: scale(1.05);
+    background-color: #2b5797;
+}
+
+/* �𠰴予閬𣇉��祇� */
+#chat-widget-window {
+    position: fixed;
+    bottom: 80px;
+    right: 20px;
+    width: 350px;
+    height: 450px;
+    background: white;
+    border-radius: 12px;
+    box-shadow: 0 10px 25px rgba(0,0,0,0.2);
+    display: flex;
+    flex-direction: column;
+    z-index: 1000;
+    overflow: hidden;
+    transition: all 0.3s ease;
+}
+
+/* �梯�閬𣇉������ */
+.hidden-widget {
+    opacity: 0;
+    pointer-events: none;
+    transform: translateY(20px);
+}
+
+/* 閬𣇉����璅䠷��� */
+#chat-widget-header {
+    background-color: var(--color-stable);
+    color: white;
+    padding: 15px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+#chat-widget-header h3 {
+    margin: 0;
+    font-size: 1.1em;
+}
+
+#chat-widget-close {
+    background: none;
+    border: none;
+    color: white;
+    font-size: 1.5em;
+    cursor: pointer;
+}
+
+/* 撠滩店憿舐內�� */
+#chat-container {
+    flex-grow: 1;
+    padding: 15px;
+    overflow-y: auto;
+    background: #fafafa;
+}
+
+/* 頛詨��� */
+#chat-widget-input-area {
+    display: flex;
+    padding: 10px;
+    border-top: 1px solid #eee;
+    background: white;
+}
+
+#user-input {
+    flex-grow: 1;
+    padding: 10px;
+    border: 1px solid #ccc;
+    border-radius: 20px;
+    outline: none;
+}
+
+#send-btn {
+    background-color: var(--color-stable);
+    color: white;
+    border: none;
+    border-radius: 20px;
+    padding: 0 15px;
+    margin-left: 10px;
+    cursor: pointer;
+}
+
+/* ==========================================
+   餈瑕�頛芣偘撱���𧢲踎璅��
+   ========================================== */
+.meme-banner-container {
+    width: 100%;
+    height: 220px; /* �𣂼��𧢲踎擃睃漲 */
+    border-radius: 12px;
+    overflow: hidden;
+    position: relative;
+    margin-bottom: 25px; /* ����寥�脣漲����贝��� */
+    background-color: #2c3e50; /* 瘛梯𠧧�峕艶镼舀�璇堒� */
+    box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+#meme-banner-img {
+    max-width: 100%;
+    max-height: 100%;
+    object-fit: contain; /* 蝣箔�璇堒�瘥𥪯�銝滩�敶� */
+    transition: opacity 0.6s ease-in-out; /* 瘛∪�瘛∪枂����急瓲敹� */
+    opacity: 0; /* �鞱身�𤩺�嚗𣬚眏 JS �批�憿舐內 */
+}
+
+.meme-banner-text {
+    position: absolute;
+    bottom: 15px;
+    right: 20px;
+    background: rgba(255, 255, 255, 0.9);
+    padding: 6px 15px;
+    border-radius: 20px;
+    font-size: 0.95em;
+    font-weight: bold;
+    color: #333;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.2);
+    transition: opacity 0.6s ease-in-out;
+    opacity: 0;
+}
+
+/* ==========================================
+   餈瑕�頛芣偘撱���𧢲踎 - 撌血𢰧����厰�
+   ========================================== */
+.banner-nav-btn {
+    position: absolute;
+    top: 50%;
+    transform: translateY(-50%);
+    background: rgba(0, 0, 0, 0.3); /* �𢠃�𤩺�暺穃� */
+    color: white;
+    border: none;
+    width: 40px;
+    height: 40px;
+    font-size: 1.2em;
+    cursor: pointer;
+    z-index: 10;
+    border-radius: 50%; /* �枏耦�厰� */
+    transition: background 0.3s ease;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.banner-nav-btn:hover {
+    background: rgba(0, 0, 0, 0.7); /* 皛煾����瘛� */
+}
+
+#banner-prev-btn {
+    left: 15px;
+}
+
+#banner-next-btn {
+    right: 15px;
+}
+
+/* 敺株矽���雿滨蔭嚗屸��滩��厰��滨� */
+.meme-banner-text {
+    position: absolute;
+    bottom: 15px;
+    /* �寧�蝵桐葉撠漤� */
+    left: 50%;
+    transform: translateX(-50%);
+    background: rgba(255, 255, 255, 0.9);
+    padding: 6px 15px;
+    border-radius: 20px;
+    font-size: 0.95em;
+    font-weight: bold;
+    color: #333;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.2);
+    transition: opacity 0.4s ease-in-out;
+    opacity: 0;
+    white-space: nowrap; /* 蝣箔����銝齿𪃾銵� */
+}
+
+/* ==========================================
+   閮芸恥餈舘�敶�枂閬𣇉� (Welcome Modal)
+   ========================================== */
+.modal-overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100vw;
+    height: 100vh;
+    background: rgba(0, 0, 0, 0.5);
+    backdrop-filter: blur(5px); /* 瘥𤤿縧��鸌�� */
+    display: none; /* �鞱身�梯�嚗𣬚眏 JS 瘙箏��臬炏憿舐內 */
+    align-items: center;
+    justify-content: center;
+    z-index: 9999; /* 蝣箔��函𧞄�Ｙ���銝𠰴惜 */
+}
+
+.modal-content {
+    background: white;
+    padding: 30px;
+    border-radius: 15px;
+    text-align: center;
+    box-shadow: 0 10px 30px rgba(0,0,0,0.2);
+    width: 90%;
+    max-width: 400px;
+    animation: popIn 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+}
+
+.modal-content h2 {
+    margin-top: 0;
+    color: var(--color-stable);
+}
+
+#guest-name-input {
+    width: 80%;
+    padding: 10px 15px;
+    margin: 15px 0;
+    border: 2px solid #eee;
+    border-radius: 8px;
+    font-size: 1em;
+    outline: none;
+    transition: border-color 0.3s;
+}
+
+#guest-name-input:focus {
+    border-color: var(--color-stable);
+}
+
+#btn-start-journey {
+    background-color: var(--color-stable);
+    color: white;
+    border: none;
+    padding: 10px 20px;
+    border-radius: 8px;
+    font-size: 1.1em;
+    cursor: pointer;
+    font-weight: bold;
+    transition: transform 0.2s;
+}
+
+#btn-start-journey:hover {
+    transform: scale(1.05);
+}
+
+@keyframes popIn {
+    from { opacity: 0; transform: scale(0.8); }
+    to { opacity: 1; transform: scale(1); }
+}
+
+/* ==========================================
+   �刻攟撟閖��湧�閬賡� (Splash Screen) �游���
+   ========================================== */
+#splash-screen {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100vw;
+    height: 100vh;
+    background: linear-gradient(135deg, #2c3e50, #4ca1af); 
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 10000; 
+    transition: opacity 0.8s ease-in-out, transform 0.8s ease-in-out;
+}
+
+.splash-content {
+    text-align: center;
+    color: white;
+}
+
+.splash-content h1 {
+    font-size: 3.2em;
+    margin-bottom: 10px;
+    letter-spacing: 3px;
+    text-shadow: 0 4px 15px rgba(0,0,0,0.3);
+}
+
+/* 頛詨�獢���厰������捆�� */
+.splash-input-group {
+    margin-top: 30px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 15px;
+}
+
+/* 瘝㗇絡撘誩��𤩺�頛詨�獢� */
+#splash-screen #guest-name-input {
+    width: 260px;
+    padding: 12px 20px;
+    border: 2px solid rgba(255,255,255,0.3);
+    border-radius: 25px;
+    background: rgba(255,255,255,0.14);
+    color: white;
+    font-size: 1.05em;
+    text-align: center;
+    outline: none;
+    backdrop-filter: blur(5px);
+    transition: all 0.3s ease;
+}
+
+#splash-screen #guest-name-input::placeholder {
+    color: rgba(255,255,255,0.6);
+}
+
+#splash-screen #guest-name-input:focus {
+    border-color: #fff;
+    background: rgba(255,255,255,0.25);
+    box-shadow: 0 0 12px rgba(255,255,255,0.4);
+}
+
+/* �質𠧧�賊��厰� */
+#splash-screen #btn-start-journey {
+    background-color: #ffffff;
+    color: #2c3e50;
+    border: none;
+    padding: 12px 40px;
+    border-radius: 25px;
+    font-size: 1.1em;
+    cursor: pointer;
+    font-weight: bold;
+    box-shadow: 0 4px 15px rgba(0,0,0,0.2);
+    transition: all 0.2s ease;
+}
+
+#splash-screen #btn-start-journey:hover {
+    transform: scale(1.05);
+    box-shadow: 0 6px 20px rgba(0,0,0,0.3);
+}
+
+/* 閫賊��湧��� */
+.splash-fade-out {
+    opacity: 0;
+    transform: scale(1.05);
+    pointer-events: none;
+}
+
+/* ==========================================
+   ����枏㨃閬𣇉�璅��
+   ========================================== */
+.mood-selector {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    margin-top: 15px;
+}
+
+.mood-btn {
+    background: #f8f9fa;
+    border: 2px solid #e9ecef;
+    padding: 12px;
+    border-radius: 8px;
+    font-size: 1em;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    text-align: left;
+    font-weight: bold;
+    color: #495057;
+}
+
+.mood-btn:hover {
+    background: #e9ecef;
+}
+
+/* 鋡恍��𡝗������ */
+.mood-btn.selected {
+    border-color: var(--color-stable);
+    background: #e3f2fd;
+    transform: scale(1.02);
+    box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+}
+
+/* ==========================================
+   �� 1. 敺桐��𤏪��𨅯�敶�歲�厰� (Squish Effect)
+   ========================================== */
+/* 撠��坔�� class �惩�隞颱��厰�銝𠺪�暺墧���停����𨅯��𧼮��� */
+.btn-squish {
+    transition: transform 0.15s cubic-bezier(0.4, 0, 0.2, 1), box-shadow 0.15s ease;
+}
+.btn-squish:active {
+    transform: scale(0.92);
+}
+
+/* ==========================================
+   �� 2. 敺桐��𤏪�璅∠��������屸��� (Fade & Slide Up)
+   ========================================== */
+.page-section {
+    display: none; /* �鞱身�梯� */
+}
+.page-section.active {
+    display: block;
+    animation: fadeUp 0.5s cubic-bezier(0.165, 0.84, 0.44, 1) forwards;
+}
+
+@keyframes fadeUp {
+    from {
+        opacity: 0;
+        transform: translateY(20px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+/* ==========================================
+   �� 3. 敺桐��𤏪����蝬脫聢��鐤�貊䔄�� (Grid Hover Glow)
+   ========================================== */
+.grid-cell {
+    transition: transform 0.2s ease, box-shadow 0.2s ease;
+    border-radius: 3px; /* 霈𤘪䲮憛羓�敺桀�瞏支�暺鮋� */
+}
+.grid-cell[data-has-data="true"]:hover {
+    transform: scale(1.3);
+    z-index: 10;
+    position: relative;
+    /* �拍鍂 CSS 霈𦠜彍霈��� JS �喃�����脖��澆� */
+    box-shadow: 0 0 10px var(--cell-color, rgba(0,0,0,0.2));
+}
+
+/* ==========================================
+   �𢲡 4. RWD �踵�撘讛身閮� (Mobile First 隞钅𢒰隤踵㟲)
+   ========================================== */
+@media (max-width: 768px) {
+    /* A. 撠���典��芸��寧�����冽�蝐文� (Bottom Tab Bar)�� */
+    #main-nav {
+        position: fixed;
+        bottom: 0;
+        left: 0;
+        width: 100%;
+        display: flex;
+        justify-content: space-around;
+        background: rgba(255, 255, 255, 0.95);
+        backdrop-filter: blur(10px);
+        box-shadow: 0 -4px 15px rgba(0,0,0,0.1);
+        z-index: 1000;
+        padding: 10px 0;
+        margin: 0;
+        border-radius: 20px 20px 0 0;
+    }
+
+    .nav-btn {
+        flex-direction: column;
+        font-size: 0.85em;
+        padding: 5px 10px;
+        background: transparent;
+        color: #666;
+        border: none;
+    }
+    
+    .nav-btn.active {
+        color: var(--color-stable);
+        font-weight: bold;
+        transform: scale(1.1);
+    }
+
+    /* �踹�銝餃�摰寡◤摨閖�撠舘⏛�烾��� */
+    main {
+        padding-bottom: 80px; 
+    }
+
+    /* B. 敹���雴�撠滩店獢�㺿�箝�峕𡂝撅𨅯��刻攟撟� (Bottom Sheet)�� */
+    #chat-widget-window {
+        width: 100%;
+        height: 85vh;
+        bottom: 0;
+        right: 0;
+        border-radius: 20px 20px 0 0;
+        display: flex;
+        flex-direction: column;
+    }
+
+    #chat-widget-btn {
+        bottom: 80px; /* 蝘餃�撠舘⏛�𦯀��� */
+        right: 15px;
+    }
+
+    /* C. 蝮桀�璅䠷�摮㛖�嚗屸��齿�璈毺�頝𤑳� */
+    h1#system-logo {
+        font-size: 1.8em;
+    }
+    .splash-content h1 {
+        font-size: 2.2em;
+    }
+}
+/* ==========================================
+   抽卡牌陣 (Cards Spread) 樣式
+   ========================================== */
+.spread-card {
+    width: 200px;
+    height: 280px;
+    background: linear-gradient(135deg, #2c3e50, #3498db);
+    border: 4px solid #fff;
+    border-radius: 12px;
+    box-shadow: 0 5px 15px rgba(0,0,0,0.3);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: white;
+    font-size: 3em;
+    cursor: pointer;
+    transition: transform 0.2s, box-shadow 0.2s;
+}
+.spread-card:hover {
+    transform: translateY(-10px) scale(1.05);
+    box-shadow: 0 15px 25px rgba(0,0,0,0.4);
+}
+

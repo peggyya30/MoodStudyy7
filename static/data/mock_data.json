@@ -1,0 +1,32 @@
+[
+    {
+        "date": "2026-05-18",
+        "tasksCompleted": 4,
+        "primaryMood": "focus",
+        "memeEarned": "ssr_focus_cat"
+    },
+    {
+        "date": "2026-05-19",
+        "tasksCompleted": 1,
+        "primaryMood": "anxious",
+        "memeEarned": "n_this_is_fine"
+    },
+    {
+        "date": "2026-05-20",
+        "tasksCompleted": 3,
+        "primaryMood": "stable",
+        "memeEarned": "sr_good_job"
+    },
+    {
+        "date": "2026-05-21",
+        "tasksCompleted": 0,
+        "primaryMood": "unmotivated",
+        "memeEarned": "n_just_let_me_rot"
+    },
+    {
+        "date": "2026-05-22",
+        "tasksCompleted": 5,
+        "primaryMood": "focus",
+        "memeEarned": "ssr_god_mode"
+    }
+]
