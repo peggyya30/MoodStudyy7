@@ -7,7 +7,7 @@ const todayKey = window.getLocalDateString();
 
 /* ===== Gemini AI 設定 =====
 請在 static/js/config.js 中設定：
-window.GEMINI_API_KEY = "你的 Gemini API Key";
+window.GEMINI_API_KEY = "AQ.Ab8RN6IabH-Ipbaolemnz0lkm896tFdCIwnuhMXYFTYO6zX0Ng";
 window.GEMINI_MODEL = "gemini-2.0-flash";
 
 注意：正式上線不建議把 API Key 放在前端，期末展示可暫時使用。
