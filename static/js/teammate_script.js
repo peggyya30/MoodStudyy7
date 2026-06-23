@@ -1,35 +1,10 @@
 
-
 const app = document.getElementById("app");
 
 window.getLocalDateString = function (d = new Date()) { return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0'); };
 const todayKey = window.getLocalDateString();
 
-// ====== Botpress 動態加載邏輯 ======
-function loadBotpress() {
-  if (document.getElementById('bp-inject-script')) {
-    if (window.botpress) window.botpress.sendEvent({ type: "show" });
-    const widget = document.getElementById('bp-web-widget-container');
-    if (widget) widget.style.display = 'block';
-    return;
-  }
-  const injectScript = document.createElement('script');
-  injectScript.id = 'bp-inject-script';
-  injectScript.src = 'https://cdn.botpress.cloud/webchat/v3.6/inject.js';
-  injectScript.onload = () => {
-    const configScript = document.createElement('script');
-    configScript.src = 'https://files.bpcontent.cloud/2026/06/10/15/20260610150935-LRH30M5J.js';
-    configScript.defer = true;
-    document.body.appendChild(configScript);
-  };
-  document.body.appendChild(injectScript);
-}
-
-function hideBotpress() {
-  if (window.botpress) window.botpress.sendEvent({ type: "hide" });
-  const widget = document.getElementById('bp-web-widget-container');
-  if (widget) widget.style.display = 'none';
-}
+// Botpress 載入邏輯已移至 static/js/botpress_loader.js
 
 /* ===== Gemini AI 設定 =====
 請在 static/js/config.js 中設定：
@@ -281,7 +256,7 @@ function renderRegister() {
         </section>
       </main>
       <footer class="footer">
-        <span>© 2026 MoodStudy. All rights reserved.</span>
+        <span>© 2024 MoodStudy. All rights reserved.</span>
       </footer>
     </div>
   `;
@@ -373,11 +348,10 @@ function normalizeTodos() {
       time: todo?.time || "30 分鐘",
       done: Boolean(todo?.done),
       subtasks: Array.isArray(todo?.subtasks)
-        ? todo.subtasks.map(subtask => ({
-          text: typeof subtask === "string" ? subtask : (subtask?.text || "未命名小任務"),
-          done: typeof subtask === "string" ? false : Boolean(subtask?.done)
-        }))
-        : []
+        ? attachUrgencyToSubtasks(todo.subtasks, todo?.text || "未命名任務")
+        : [],
+      breakdownSource: todo?.breakdownSource || "",
+      breakdownError: todo?.breakdownError || ""
     };
 
     syncTodoDoneFromSubtasks(normalized);
@@ -447,10 +421,112 @@ function normalizeSubtaskList(list) {
   return cleaned.slice(0, 6);
 }
 
+
+
+/* ===== AI 拆解任務優先級：緊急 / 還好 / 不緊急 ===== */
+
+
+/* ===== AI 拆解來源顯示：Gemini / 內建備援 ===== */
+function getBreakdownSourceLabel(todo) {
+  const source = todo?.breakdownSource || "";
+  if (source === "gemini") return "Gemini AI 拆解";
+  if (source === "fallback") return "內建備援拆解";
+  if (source === "manual") return "手動拆解";
+  return "尚未拆解";
+}
+
+function getBreakdownSourceClass(todo) {
+  const source = todo?.breakdownSource || "";
+  if (source === "gemini") return "gemini";
+  if (source === "fallback") return "fallback";
+  if (source === "manual") return "manual";
+  return "none";
+}
+
+function hasGeminiConfig() {
+  return Boolean(GEMINI_API_KEY && GEMINI_API_KEY !== "YOUR_GEMINI_API_KEY_HERE");
+}
+
+function getAIBreakdownModeText() {
+  if (!hasGeminiConfig()) {
+    return "目前未偵測到 Gemini API Key，拆解會使用內建備援規則。若要真正依照不同輸入即時拆解，請確認 static/js/config.js 已設定 window.GEMINI_API_KEY。";
+  }
+  return "目前已偵測到 Gemini API Key。AI 拆解會優先呼叫 Gemini；若 API 額度不足或連線失敗，才會改用內建備援。";
+}
+
+function normalizeUrgencyLevel(value) {
+  const level = String(value || "").trim();
+  if (["緊急", "還好", "不緊急"].includes(level)) return level;
+  return "還好";
+}
+
+function getUrgencyClass(level) {
+  const normalized = normalizeUrgencyLevel(level);
+  if (normalized === "緊急") return "urgent";
+  if (normalized === "不緊急") return "not-urgent";
+  return "normal";
+}
+
+function classifySubtaskUrgency(subtaskText, index = 0, total = 1, mainTaskText = "") {
+  const text = `${mainTaskText} ${subtaskText}`.toLowerCase();
+  const stress = Number(state.stress) || 0;
+  const urgentWords = ["截止", "明天", "今天", "馬上", "立即", "繳交", "上傳", "考試", "期末", "期中", "先完成", "確認要求", "確認範圍", "第一段"];
+  const notUrgentWords = ["檢查", "練習口頭", "美化", "整理收納", "最後", "回家整理", "複習", "補上", "錯字"];
+
+  if (urgentWords.some(word => text.includes(word))) return "緊急";
+  if (stress >= 4 && index <= 1) return "緊急";
+  if (index === 0) return "緊急";
+
+  if (notUrgentWords.some(word => text.includes(word)) || index >= total - 1) return "不緊急";
+  return "還好";
+}
+
+function attachUrgencyToSubtasks(subtasks, mainTaskText = "") {
+  const list = Array.isArray(subtasks) ? subtasks : [];
+  return list.map((item, index) => {
+    const text = typeof item === "string" ? item : (item?.text || "未命名小任務");
+    const existingUrgency = typeof item === "string" ? "" : item?.urgency;
+    return {
+      text: cleanSubtaskText(text),
+      done: typeof item === "string" ? false : Boolean(item?.done),
+      urgency: normalizeUrgencyLevel(existingUrgency || classifySubtaskUrgency(text, index, list.length, mainTaskText))
+    };
+  });
+}
+
+function getFirstRescueSubtask(todo) {
+  const subtasks = Array.isArray(todo?.subtasks) ? todo.subtasks : [];
+  return subtasks.find(s => !s.done && normalizeUrgencyLevel(s.urgency) === "緊急")
+    || subtasks.find(s => !s.done && normalizeUrgencyLevel(s.urgency) === "還好")
+    || subtasks.find(s => !s.done)
+    || null;
+}
+
+function renderUrgencySummary(todo) {
+  const subtasks = Array.isArray(todo?.subtasks) ? todo.subtasks : [];
+  if (!subtasks.length) return "";
+  const urgent = subtasks.filter(s => normalizeUrgencyLevel(s.urgency) === "緊急" && !s.done).length;
+  const normal = subtasks.filter(s => normalizeUrgencyLevel(s.urgency) === "還好" && !s.done).length;
+  const relaxed = subtasks.filter(s => normalizeUrgencyLevel(s.urgency) === "不緊急" && !s.done).length;
+  const rescue = getFirstRescueSubtask(todo);
+  return `
+    <div class="urgency-summary">
+      <span class="urgency-dot urgent">緊急 ${urgent}</span>
+      <span class="urgency-dot normal">還好 ${normal}</span>
+      <span class="urgency-dot not-urgent">不緊急 ${relaxed}</span>
+      ${rescue ? `<strong>建議先做：${escapeHTML(rescue.text)}</strong>` : `<strong>小任務已完成 🎉</strong>`}
+    </div>
+  `;
+}
+
 function getLocalTaskBreakdown(taskText) {
   const text = String(taskText || "").trim();
 
-  // 生活整理類：避免「整理房間」被誤判成整理筆記
+  // 備援規則只在 Gemini 無法使用時啟動；盡量依照輸入內容給出相近拆解
+  if (text.includes("行李") || text.includes("旅行") || text.includes("出門") || text.includes("旅遊") || text.includes("收拾包包")) {
+    return ["確認出門天數", "挑選必要衣物", "準備盥洗用品", "收好充電器", "檢查證件錢包"];
+  }
+
   if (
     text.includes("整理房間") || text.includes("打掃") || text.includes("房間") ||
     text.includes("掃地") || text.includes("拖地") || text.includes("收拾") ||
@@ -459,42 +535,51 @@ function getLocalTaskBreakdown(taskText) {
     return ["先丟掉垃圾", "衣服分類收好", "整理桌面雜物", "擦拭桌面灰塵", "掃地或拖地"];
   }
 
-  if (text.includes("報告") || text.includes("簡報") || text.includes("專題") || text.toLowerCase().includes("presentation")) {
-    return ["確認報告要求", "蒐集相關資料", "整理內容架構", "撰寫或製作內容", "檢查格式與錯字", "練習口頭說明"];
+  if (text.includes("報告") || text.includes("書面") || text.includes("心得") || text.includes("企劃")) {
+    return ["確認報告要求", "蒐集相關資料", "整理內容架構", "先完成一段", "檢查格式錯字"];
+  }
+
+  if (text.includes("簡報") || text.includes("投影片") || text.toLowerCase().includes("ppt") || text.toLowerCase().includes("presentation")) {
+    return ["確認簡報主題", "列出頁面大綱", "製作內容頁", "加入圖片圖表", "練習口頭說明"];
   }
 
   if (text.includes("考試") || text.includes("複習") || text.includes("讀書") || text.includes("期末") || text.includes("考古")) {
-    return ["確認考試範圍", "整理重點筆記", "練習例題或考古題", "訂正不會的題目", "考前快速複習"];
+    return ["確認考試範圍", "整理重點筆記", "練習考古題", "訂正錯誤題目", "考前快速複習"];
   }
 
   if (text.includes("作業") || text.includes("功課") || text.includes("題目") || text.includes("練習題")) {
-    return ["看懂題目要求", "列出完成步驟", "完成主要內容", "檢查答案或格式", "準備上傳或繳交"];
+    return ["看懂題目要求", "列出完成步驟", "完成主要內容", "檢查答案格式", "準備上傳繳交"];
   }
 
   if (text.includes("閱讀") || text.includes("課文") || text.includes("英文") || text.includes("文章")) {
-    return ["先快速瀏覽內容", "標記不懂的地方", "整理單字與重點", "寫下段落摘要", "完成最後複習"];
+    return ["快速瀏覽內容", "標記不懂地方", "整理單字重點", "寫下段落摘要", "完成最後複習"];
   }
 
-  // 只有明確和課業筆記有關時，才拆成筆記整理
   if (
     text.includes("整理筆記") || text.includes("筆記重點") ||
     text.includes("課程筆記") || text.includes("上課筆記")
   ) {
-    return ["翻閱今日課程內容", "圈出重要觀念", "整理成條列重點", "補上不懂的地方", "最後快速看一遍"];
+    return ["翻閱課程內容", "圈出重要觀念", "整理條列重點", "補上不懂地方", "快速看一遍"];
   }
 
   if (text.includes("買") || text.includes("採買") || text.includes("購物")) {
-    return ["列出需要物品", "確認預算與數量", "安排購買路線", "購買主要物品", "回家整理收納"];
+    return ["列出需要物品", "確認預算數量", "安排購買路線", "購買主要物品", "回家整理收納"];
   }
 
   if (text.includes("回覆") || text.includes("寄信") || text.includes("email") || text.includes("訊息")) {
-    return ["確認回覆對象", "整理要說的重點", "撰寫回覆內容", "檢查語氣與錯字", "送出並紀錄"];
+    return ["確認回覆對象", "整理要說重點", "撰寫回覆內容", "檢查語氣錯字", "送出並紀錄"];
   }
 
-  return ["確認任務目標", "列出需要物品", "先做最簡單一步", "完成主要內容", "檢查並收尾"];
+  return [
+    `確認「${text.slice(0, 8) || "任務"}」目標`,
+    "列出必要步驟",
+    "先做最小一步",
+    "完成主要內容",
+    "檢查並收尾"
+  ];
 }
 
-function parseTaskBreakdownResponse(rawText) {
+function parseTaskBreakdownResponse(rawText, mainTaskText = "") {
   const text = String(rawText || "").trim();
   if (!text) return [];
 
@@ -502,47 +587,71 @@ function parseTaskBreakdownResponse(rawText) {
   if (jsonMatch) {
     try {
       const parsed = JSON.parse(jsonMatch[0]);
-      if (Array.isArray(parsed)) return normalizeSubtaskList(parsed);
+      if (Array.isArray(parsed)) {
+        if (parsed.some(item => typeof item === "object" && item !== null)) {
+          return attachUrgencyToSubtasks(parsed, mainTaskText).slice(0, 6);
+        }
+        return attachUrgencyToSubtasks(normalizeSubtaskList(parsed), mainTaskText);
+      }
     } catch (error) {
       console.warn("AI breakdown JSON parse failed", error);
     }
   }
 
-  return normalizeSubtaskList(
-    text
-      .split(/\n|；|;/)
-      .map(line => line.replace(/^[\s\-•*\d.、)]+/, ""))
+  return attachUrgencyToSubtasks(
+    normalizeSubtaskList(
+      text
+        .split(/\n|；|;/)
+        .map(line => line.replace(/^[\s\-•*\d.、)]+/, ""))
+    ),
+    mainTaskText
   );
 }
 
 async function getAITaskBreakdown(taskText) {
-  const fallback = getLocalTaskBreakdown(taskText);
+  const fallbackItems = attachUrgencyToSubtasks(getLocalTaskBreakdown(taskText), taskText);
 
-  if (!GEMINI_API_KEY || GEMINI_API_KEY === "YOUR_GEMINI_API_KEY_HERE") {
-    return fallback;
+  if (!hasGeminiConfig()) {
+    return {
+      items: fallbackItems,
+      source: "fallback",
+      error: "Gemini API Key 未設定"
+    };
   }
 
   const prompt = `
-你是 MoodStudy 的 AI 任務拆解助理。
+你是 MoodStudy 的「真實任務拆解助理」。
 
-請根據使用者輸入的「原始任務」本身進行拆解。
-不要自行把任務改成讀書、課程或考試內容，除非原始任務本身就是學習、作業、報告或考試。
+重要要求：
+你必須完全根據使用者輸入的任務內容進行拆解，不能套用固定模板。
+如果使用者輸入「收拾行李」，就要拆成和行李、衣物、盥洗用品、證件、充電器、出門檢查有關的小任務。
+如果使用者輸入「整理房間」，就要拆成和房間整理有關的小任務。
+如果使用者輸入「完成期末報告」，才可以拆成報告相關步驟。
+不要把生活任務誤判成讀書任務，也不要把所有任務都拆成報告、考試或筆記。
 
-任務可能包含：
-- 學習任務，例如準備考試、寫報告、整理筆記
-- 生活任務，例如整理房間、洗衣服、打掃、買東西
-- 行政任務，例如整理資料、回覆訊息、寄信
-- 專案任務，例如製作簡報、寫程式、完成系統功能
+使用者輸入的任務：
+「${taskText}」
 
-原始任務：「${taskText}」
+請回傳 4 到 6 個具體小任務，每個小任務都要符合原始任務。
 
-規則：
-1. 使用繁體中文。
-2. 拆成 4 到 6 個具體、短小、容易打勾的小任務。
-3. 每個小任務最多 12 個中文字左右。
-4. 小任務必須符合原始任務，不要答非所問。
-5. 不要加入鼓勵語、解釋、標題。
-6. 只回傳 JSON 陣列，例如：["先丟掉垃圾","衣服分類收好","整理桌面雜物"]
+每個小任務必須包含：
+- text：小任務內容，繁體中文，最多 14 個中文字
+- urgency：只能是「緊急」、「還好」、「不緊急」
+
+urgency 判斷方式：
+- 緊急：最需要先做、會影響後面流程、或接近截止
+- 還好：中間執行步驟
+- 不緊急：最後檢查、美化、收尾、確認類步驟
+
+只回傳 JSON 陣列，不要加解釋文字，不要加 Markdown。
+格式範例：
+[
+  {"text":"確認行李尺寸","urgency":"緊急"},
+  {"text":"挑選必要衣物","urgency":"緊急"},
+  {"text":"準備盥洗用品","urgency":"還好"},
+  {"text":"收好充電器","urgency":"還好"},
+  {"text":"檢查證件錢包","urgency":"不緊急"}
+]
 `;
 
   try {
@@ -559,26 +668,40 @@ async function getAITaskBreakdown(taskText) {
             }
           ],
           generationConfig: {
-            temperature: 0.45,
-            topP: 0.9,
-            maxOutputTokens: 220
+            temperature: 0.7,
+            topP: 0.95,
+            maxOutputTokens: 320
           }
         })
       }
     );
 
     if (!response.ok) {
-      console.error("Gemini breakdown error:", await response.text());
-      return fallback;
+      const errText = await response.text();
+      console.error("Gemini breakdown error:", errText);
+      return {
+        items: fallbackItems,
+        source: "fallback",
+        error: "Gemini API 回應失敗：" + response.status
+      };
     }
 
     const data = await response.json();
     const raw = data?.candidates?.[0]?.content?.parts?.[0]?.text || "";
-    const parsed = parseTaskBreakdownResponse(raw);
-    return parsed.length ? parsed : fallback;
+    const parsed = parseTaskBreakdownResponse(raw, taskText);
+
+    return {
+      items: parsed.length ? parsed : fallbackItems,
+      source: parsed.length ? "gemini" : "fallback",
+      error: parsed.length ? "" : "Gemini 回傳格式無法解析"
+    };
   } catch (error) {
     console.error("Gemini breakdown fetch error:", error);
-    return fallback;
+    return {
+      items: fallbackItems,
+      source: "fallback",
+      error: "Gemini 連線失敗"
+    };
   }
 }
 
@@ -822,7 +945,7 @@ function renderLogin() {
         </section>
       </main>
       <footer class="footer">
-        <span>© 2026 MoodStudy. All rights reserved.</span>
+        <span>© 2024 MoodStudy. All rights reserved.</span>
         <span>隱私權政策　使用條款　聯絡我們</span>
       </footer>
     </div>
@@ -966,6 +1089,8 @@ function renderMobileMenu(page) {
         <button class="${page === "mood" ? "active" : ""}" onclick="closeMobileMenu(); renderMoodFeedback()">學習狀態回饋</button>
         <button class="${page === "ai" ? "active" : ""}" onclick="closeMobileMenu(); renderAI()">AI 學習分析</button>
         <button class="${page === "calendar" ? "active" : ""}" onclick="closeMobileMenu(); renderCalendar()">連續學習</button>
+        <button class="${page === "gacha" ? "active" : ""}" onclick="closeMobileMenu(); renderMemeModule()">迷因獎勵</button>
+        <button class="${page === "popcat" ? "active" : ""}" onclick="closeMobileMenu(); renderPopcatModule()">壓力釋放</button>
         <button class="${page === "profile" ? "active" : ""}" onclick="closeMobileMenu(); renderProfile()">個人資料</button>
         <button class="${page === "settings" ? "active" : ""}" onclick="closeMobileMenu(); renderSettings()">字體設定</button>
       `}
@@ -1077,10 +1202,10 @@ function renderPopcatModule() {
               <h2 style="margin-top: 0;">🐱 壓力釋放區</h2>
               <p style="color: #666; font-size: 1.1em; margin-bottom: 30px;">讀書讀到快崩潰？瘋狂點擊貓貓釋放壓力吧！</p>
               <div id="popcat-container" style="text-align: center; user-select: none;">
-                  <img id="popcat-img" src="../static/images/popcat1.png" alt="Pop Cat" width="250" style="cursor: pointer; transition: transform 0.05s;">
+                  <img id="popcat-img" src="./static/images/popcat1.png" alt="Pop Cat" width="250" style="cursor: pointer; transition: transform 0.05s;">
                   <p style="font-size: 1.5em; font-weight: bold; margin-top: 20px;">點擊次數：<span id="popcat-score" style="color: #d9534f; font-size: 1.5em;">0</span></p>
               </div>
-              <audio id="popcat-sound" src="../static/sounds/pop.mp3"></audio>
+              <audio id="popcat-sound" src="./static/sounds/pop.mp3"></audio>
           </div>
       </section>
   `;
@@ -1709,6 +1834,140 @@ function getStreakProgressPercent() {
   return Math.min(100, Math.round((days / 7) * 100));
 }
 
+
+
+/* ===== 期末爆炸指數：目的導向學習風險提醒 ===== */
+function getFinalBlastIndex() {
+  const stress = Number(state.stress) || 0;
+  const unfinished = getUnfinishedTodoCount();
+  const mood = state.mood || "尚未填寫";
+  const streak = getCurrentConsecutiveDays();
+  const totalTodos = Array.isArray(state.todos) ? state.todos.length : 0;
+  const completedTodos = (state.todos || []).filter(todo => getTodoIsDone(todo)).length;
+  const completionRate = totalTodos > 0 ? Math.round((completedTodos / totalTodos) * 100) : 0;
+
+  let score = 0;
+  const reasons = [];
+
+  if (stress >= 5) {
+    score += 35;
+    reasons.push("壓力程度非常高");
+  } else if (stress === 4) {
+    score += 28;
+    reasons.push("壓力程度偏高");
+  } else if (stress === 3) {
+    score += 15;
+    reasons.push("壓力程度中等");
+  } else if (!stress) {
+    score += 8;
+    reasons.push("尚未完成壓力檢測");
+  }
+
+  if (mood === "焦慮") {
+    score += 22;
+    reasons.push("今日狀態為焦慮");
+  } else if (mood === "疲累") {
+    score += 18;
+    reasons.push("今日狀態為疲累");
+  } else if (mood === "沒動力") {
+    score += 24;
+    reasons.push("今日狀態為沒動力");
+  } else if (mood === "尚未填寫") {
+    score += 10;
+    reasons.push("尚未填寫今日學習狀態");
+  }
+
+  if (unfinished >= 6) {
+    score += 25;
+    reasons.push("未完成任務較多");
+  } else if (unfinished >= 3) {
+    score += 16;
+    reasons.push("仍有多項任務未完成");
+  } else if (unfinished >= 1) {
+    score += 8;
+    reasons.push("仍有任務待完成");
+  }
+
+  if (streak === 0) {
+    score += 12;
+    reasons.push("近期尚未形成連續學習");
+  } else if (streak < 3) {
+    score += 6;
+    reasons.push("連續學習仍在建立中");
+  }
+
+  if (completionRate >= 80 && totalTodos > 0) {
+    score -= 10;
+    reasons.push("任務完成率良好");
+  }
+
+  score = Math.max(0, Math.min(100, score));
+
+  let level = "低";
+  let className = "blast-low";
+  let emoji = "🟢";
+  let title = "目前狀態穩定";
+  let advice = "今天可以維持原本節奏，先完成一個小任務並保持打卡習慣。";
+
+  if (score >= 70) {
+    level = "高";
+    className = "blast-high";
+    emoji = "🔴";
+    title = "期末爆炸風險偏高";
+    advice = "建議先停止新增任務，從最急迫的一項開始，並使用 AI 任務拆解成 10～20 分鐘的小步驟。";
+  } else if (score >= 40) {
+    level = "中";
+    className = "blast-mid";
+    emoji = "🟡";
+    title = "期末爆炸風險需觀察";
+    advice = "建議先排序待辦事項，今天只挑一個最容易開始的任務完成，避免任務繼續堆疊。";
+  }
+
+  return {
+    score,
+    level,
+    className,
+    emoji,
+    title,
+    advice,
+    reasons: reasons.slice(0, 3),
+    completionRate,
+    unfinished
+  };
+}
+
+function renderFinalBlastCard() {
+  const blast = getFinalBlastIndex();
+  const reasonText = blast.reasons.length ? blast.reasons.join("、") : "目前資料不足，建議先完成狀態與壓力回饋。";
+
+  return `
+    <section class="final-blast-card ${blast.className}">
+      <div class="final-blast-left">
+        <div class="final-blast-icon">${blast.emoji}</div>
+        <div>
+          <h3>期末爆炸指數</h3>
+          <p>依據壓力程度、學習狀態、未完成任務與連續學習紀錄進行判斷。</p>
+        </div>
+      </div>
+
+      <div class="final-blast-score">
+        <span>${blast.score}</span>
+        <small>/ 100</small>
+      </div>
+
+      <div class="final-blast-info">
+        <strong>${blast.title}</strong>
+        <p>主要原因：${reasonText}</p>
+        <p class="final-blast-advice">${blast.advice}</p>
+        <div class="final-blast-actions">
+          <button onclick="renderTodoList()">查看 To-Do</button>
+          <button onclick="renderMoodFeedback()">更新狀態</button>
+        </div>
+      </div>
+    </section>
+  `;
+}
+
 function renderDashboard() {
   const checkedToday = state.lastCheckinDate === todayKey;
   const content = `
@@ -1747,6 +2006,8 @@ function renderDashboard() {
           </div>
       </div>
     </div>
+
+    ${renderFinalBlastCard()}
 
     <div class="ai-strip">
       <div>
@@ -2454,6 +2715,7 @@ function renderTodoTaskBlock(todo, index) {
               <input type="checkbox" ${subtask.done ? "checked" : ""} onchange="toggleSubtask(${index}, ${subIndex});">
               <span>${escapeHTML(subtask.text)}</span>
             </label>
+            <span class="urgency-badge ${getUrgencyClass(subtask.urgency)}">${normalizeUrgencyLevel(subtask.urgency)}</span>
             <button class="subtask-delete-btn" onclick="deleteSubtask(${index}, ${subIndex})">刪除</button>
           </div>
         `).join("")}
@@ -2480,15 +2742,23 @@ function renderTodoTaskBlock(todo, index) {
       <div class="task-breakdown-panel">
         <div class="task-breakdown-head">
           <span>任務拆解進度：${getTodoProgressText(todo)}</span>
+          <span class="source-badge ${getBreakdownSourceClass(todo)}">${getBreakdownSourceLabel(todo)}</span>
           <strong>${progress}%</strong>
         </div>
         <div class="task-progress-track">
           <div class="task-progress-fill" style="width:${progress}%"></div>
         </div>
+        ${renderUrgencySummary(todo)}
         ${subtaskHtml}
       </div>
     </div>
   `;
+}
+
+
+
+function getAIBreakdownStatusText() {
+  return getAIBreakdownModeText();
 }
 
 function renderAI() {
@@ -2594,6 +2864,12 @@ function renderAI() {
           
         </section>
 
+        <section class="small-card ai-status-card">
+          <h3>AI 拆解狀態</h3>
+          <p>${getAIBreakdownStatusText()}</p>
+          <p class="ai-status-note">分類方式：緊急 → 還好 → 不緊急，並自動推薦最先開始的小任務。</p>
+        </section>
+
         <section class="small-card final-risk">
           <div class="risk-head">
             <h3>學習風險提醒</h3>
@@ -2692,11 +2968,18 @@ async function aiBreakdownTask(index) {
   }
 
   try {
-    const subtasks = await getAITaskBreakdown(todo.text);
-    todo.subtasks = subtasks.map(text => ({ text, done: false }));
+    const result = await getAITaskBreakdown(todo.text);
+    todo.subtasks = attachUrgencyToSubtasks(result.items || [], todo.text);
+    todo.breakdownSource = result.source || "fallback";
+    todo.breakdownError = result.error || "";
     syncTodoDoneFromSubtasks(todo);
     syncTodayCheckinTaskStatus();
     save();
+
+    if (todo.breakdownSource === "fallback") {
+      alert("提醒：目前使用的是「內建備援拆解」，不是 Gemini 即時 AI 拆解。\n原因：" + (todo.breakdownError || "AI 未連線"));
+    }
+
     renderAI();
   } catch (error) {
     console.error("AI 拆解失敗", error);
@@ -2716,7 +2999,14 @@ function addSubtask(index) {
   if (!text) return;
 
   if (!Array.isArray(todo.subtasks)) todo.subtasks = [];
-  todo.subtasks.push({ text: cleanSubtaskText(text), done: false });
+  const cleaned = cleanSubtaskText(text);
+  todo.subtasks.push({
+    text: cleaned,
+    done: false,
+    urgency: classifySubtaskUrgency(cleaned, todo.subtasks.length, todo.subtasks.length + 1, todo.text)
+  });
+  todo.breakdownSource = "manual";
+  todo.breakdownError = "";
   syncTodoDoneFromSubtasks(todo);
   syncTodayCheckinTaskStatus();
   save();
